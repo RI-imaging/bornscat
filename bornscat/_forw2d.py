@@ -17,8 +17,8 @@ __all__ = ["born_2d", "born_2d_matrix", "born_2d_shift",
            "rytov_2d"]
 
 
-def born_2d(n, lD, nm, lambd, source="plane", lS=None, xS=0, order=1,
-            zeropad=1, fullout=False, jmc=None, jmm=None):
+def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
+            zeropad=1, jmc=None, jmm=None):
     """ Computes Born series.
     
     Calculate the scattered field of a plane wave behind a discretetized
@@ -28,12 +28,12 @@ def born_2d(n, lD, nm, lambd, source="plane", lS=None, xS=0, order=1,
         |  
         ----> z  
               
-        scat. potential      detector   
-           ___            
-         /     \            . (x,lD)     
-        | (0,0) |           .
-         \ ___ /            .
-                            .
+        scat. potential 
+           ___          
+         /     \        
+        | (0,0) |       
+         \ ___ /        
+                        
     
     E0 = exp(-ikz)
 
@@ -42,18 +42,12 @@ def born_2d(n, lD, nm, lambd, source="plane", lS=None, xS=0, order=1,
     ----------
     n : ndarry, square-shaped (MxM)
         The refractive index distribution (scattering potential)
-    lD : int
-        Output distance from the center of `n` to the detector. The
-        dielectric is centered at the right lower center in the case
-        of even images and at the center pixel for odd images.
     nm : float
         Refractive index of the surrounding medium
     lambd : float
         vacuum wavelength of the used light in pixels
     source: str
-        The source type. One of {"plane", "point"}. If a point source
-        is used, then the distance to the detector is lS+lD, where
-        ln is the length of an axis of `n`.
+        The source type. One of {"plane", "point"}. 
     lS : float
         Axial distance from the center of `n` to the source
         (Only for point sources). If set to None, then lS=M/2+1
@@ -64,9 +58,6 @@ def born_2d(n, lD, nm, lambd, source="plane", lS=None, xS=0, order=1,
         Order of the Born approximation
     zeropad : bool
         Zero-pad input data which improves accuracy
-    fullout : bool
-        Return the entire scattered field. If this is True, then `lD`
-        has no effect.
     jmc, jmm : instance of `multiprocessing.Value` or `None`
         The progress of this function can be monitored with the 
         `jobmanager` package. The current step `jmc.value` is
@@ -158,10 +149,7 @@ def born_2d(n, lD, nm, lambd, source="plane", lS=None, xS=0, order=1,
     if zeropad:
         u = u[padsa:-padsb,padsa:-padsb]
 
-    if fullout:
-        return u#[:,ln/2:]
-
-    return u[:,int(np.ceil(ln/2)+lD)]
+    return u
 
 
 def born_2d_shift(n, lD, nm, lambd, source="plane", order=1, zeropad=1,
@@ -574,7 +562,7 @@ def born_2d_fourier(n, lD, nm, lambd, zeropad=True):
     return np.exp(1j*km*lD)+uB
 
 
-def rytov_2d(n, lD, nm, lambd, order=1, zeropad=1, fullout=False,
+def rytov_2d(n, nm, lambd, order=1, zeropad=1, fullout=False,
              jmc=None, jmm=None):
     """ Computes Rytov series using Fourier convolution.
     
@@ -585,12 +573,12 @@ def rytov_2d(n, lD, nm, lambd, order=1, zeropad=1, fullout=False,
         |  
         ----> z  
               
-        scat. potential      detector   
-           ___            
-         /     \            . (x,lD)     
-        | (0,0) |           .
-         \ ___ /            .
-                            .
+        scat. potential
+           ___         
+         /     \       
+        | (0,0) |      
+         \ ___ /       
+                       
     
     E0 = exp(-ikz)
 
@@ -599,9 +587,6 @@ def rytov_2d(n, lD, nm, lambd, order=1, zeropad=1, fullout=False,
     ----------
     n : ndarry, square-shaped (MxM)
         The refractive index distribution (scattering potential)
-    lD : float
-        Output distance from the center of the object in pixels from
-        the center of `n`
     nm : float
         Refractive index of the surrounding medium
     lambd : float
@@ -683,14 +668,8 @@ def rytov_2d(n, lD, nm, lambd, order=1, zeropad=1, fullout=False,
             jmc.value += 1    
     u = np.exp(phiR)*u0
 
-    #import tool
-    #tool.arr2im(np.abs(np.fft.ifftshift(G)), scale=True).save("forw_G.png")
-    #tool.arr2im(np.abs(np.fft.ifftshift(FU)), scale=True).save("forw_FU.png")
-    #tool.arr2im(np.abs(u-u0), scale=True).save("forw_uB_order{}.png".format(order))
-
     if zeropad:
-        u = u[padsa:-padsb,padsa:]
+        u = u[padsa:-padsb,padsa:-padsb]
 
-
-    return u[:,int(np.floor(ln/2)+lD)]
+    return u
 
