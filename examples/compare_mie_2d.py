@@ -58,6 +58,12 @@ n[np.where((xv**2+yv**2 < rad**2))] = ncyl
 
 # Rytov
 print("Rytov scattered wave")
-rytov_u0 = bornscat.rytov_2d(n0, nmed, res)
-rytov_u = bornscat.rytov_2d(n, nmed, res)
+rytov_u0 = br.rytov_2d(n0, nmed, res)
+rytov_u = br.rytov_2d(n, nmed, res)
 ro = rytov_u/rytov_u0
+
+plt.imshow(np.angle(ro))
+plt.show()
+
+import IPython
+IPython.embed()
