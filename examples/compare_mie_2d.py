@@ -26,7 +26,7 @@ try:
     import miefield as mie
 except:
     print("Either run 'pip install miefield' or download it manually "+
-          "from https://github.com/paulmueller/miefield")
+          "from https://github.com/RI-imaging/miefield")
     exit(0)
 
 import bornscat as br
