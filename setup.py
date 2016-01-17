@@ -39,7 +39,7 @@ if __name__ == "__main__":
         name=name,
         author=author,
         author_email='paul.mueller at biotec.tu-dresden.de',
-        url='http://paulmueller.github.io/bornscat/',
+        url='http://RI-imaging.github.io/bornscat/',
         version=version,
         packages=[name],
         package_dir={name: name},
