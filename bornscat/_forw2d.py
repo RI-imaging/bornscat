@@ -9,12 +9,14 @@ from __future__ import division, print_function
 import numpy as np
 import scipy.interpolate as intp
 import scipy.special
-import scipy.signal
-import sys
 import warnings
+
+from . import pad
 
 __all__ = ["born_2d", "born_2d_matrix", "born_2d_shift",
            "rytov_2d"]
+
+
 
 
 def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
@@ -86,18 +88,17 @@ def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
     if lS is None:
         lS = ln/2+1
 
-    if zeropad:
-        pads = max(64., 2**np.ceil(np.log((1+zeropad) * ln) / np.log(2))) - ln
-        padsa = int(np.ceil(pads/2))
-        padsb = pads-padsa
-    else:
-        pads = 0
-
-    x = np.linspace(-(ln+pads)/2, (ln+pads)/2, (ln+pads), endpoint=False)
-    xv = x.reshape(-1, 1) 
-    zv = x.reshape( 1,-1)
-
     f = km**2 * ( (n/nm)**2 - 1 )
+    if zeropad:
+        f = pad.pad_add(f)
+
+    xmax = f.shape[0]/2
+    x = np.linspace(-xmax, xmax, f.shape[0], endpoint=False)
+    zmax = f.shape[1]/2
+    z = np.linspace(-zmax, zmax, f.shape[1], endpoint=False)
+
+    xv = x.reshape(-1, 1) 
+    zv = z.reshape( 1,-1)
     
     if source in ["plane", "line"]:
         u0 = np.exp(1j*km*zv)
@@ -114,8 +115,7 @@ def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
     
     R = np.sqrt( (xv)**2 + (zv)**2 )
 
-    if zeropad:
-        f = np.pad(f, ((padsa,padsb), (padsa,padsb)), mode="constant")
+
 
     g = Green(R)
 
@@ -147,7 +147,7 @@ def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
     #tool.arr2im(np.abs(u-u0), scale=True).save("forw_uB_order{}.png".format(order))
 
     if zeropad:
-        u = u[padsa:-padsb,padsa:-padsb]
+        u = pad.pad_rem(u)
 
     return u
 
@@ -623,23 +623,21 @@ def rytov_2d(n, nm, lambd, order=1, zeropad=1, fullout=False,
 
     ln = len(n)
 
-    if zeropad:
-        pads = max(64., 2**np.ceil(np.log(2 * ln) / np.log(2))) - ln
-        padsa = int(np.ceil(pads/2))
-        padsb = pads-padsa
-    else:
-        pads = 0
-
-    x = np.linspace(-(ln+pads)/2, (ln+pads)/2, (ln+pads), endpoint=False)
-    xv = x.reshape(-1, 1) 
-    zv = x.reshape( 1,-1)
 
     f = km**2 * ( (n/nm)**2 - 1 )
+    if zeropad:
+        f = pad.pad_add(f)
+
+    xmax = f.shape[0]/2
+    x = np.linspace(-xmax, xmax, f.shape[0], endpoint=False)
+    zmax = f.shape[1]/2
+    z = np.linspace(-zmax, zmax, f.shape[1], endpoint=False)
+
+    xv = x.reshape(-1, 1) 
+    zv = z.reshape( 1,-1)
+
     u0 = np.exp(1j*km*zv)
     R = np.sqrt( (xv)**2 + (zv)**2 )
-
-    if zeropad:
-        f = np.pad(f, ((padsa,padsb), (padsa,padsb)), mode="constant")
 
     if jmc is not None:
         jmc.value += 1
@@ -669,7 +667,7 @@ def rytov_2d(n, nm, lambd, order=1, zeropad=1, fullout=False,
     u = np.exp(phiR)*u0
 
     if zeropad:
-        u = u[padsa:-padsb,padsa:-padsb]
+        u = pad.pad_rem(u)
 
     return u
 
