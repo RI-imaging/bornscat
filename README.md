@@ -1,5 +1,5 @@
 ## bornscat
-python library to compute forward scattering in the Born or Rytov approximation
+python library to compute forward scattering with the Born or Rytov approximation
 
 
 #### TODO
