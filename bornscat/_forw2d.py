@@ -562,7 +562,7 @@ def born_2d_fourier(n, lD, nm, lambd, zeropad=True):
     return np.exp(1j*km*lD)+uB
 
 
-def rytov_2d(n, nm, lambd, order=1, zeropad=1, fullout=False,
+def rytov_2d(n, nm, lambd, zeropad=1,
              jmc=None, jmm=None):
     """ Computes Rytov series using Fourier convolution.
     
@@ -591,12 +591,8 @@ def rytov_2d(n, nm, lambd, order=1, zeropad=1, fullout=False,
         Refractive index of the surrounding medium
     lambd : float
         vacuum wavelength of the used light in pixels
-    order : int
-        Order of the Rytov approximation
     zeropad : bool
         Zero-pad input data which significantly improves accuracy
-    fullout : bool
-        Return the entire scattered field behind the object
     jmc, jmm : instance of `multiprocessing.Value` or `None`
         The progress of this function can be monitored with the 
         `jobmanager` package. The current step `jmc.value` is
@@ -611,7 +607,7 @@ def rytov_2d(n, nm, lambd, order=1, zeropad=1, fullout=False,
         electric field or shape (MxM) if fullout is set to True.
     """
     if jmm is not None:
-        jmm.value = order + 2
+        jmm.value = 2
     
     #Green = lambda R: np.exp(1j * km * R) / (4*np.pi*R)
     Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
@@ -620,9 +616,6 @@ def rytov_2d(n, nm, lambd, order=1, zeropad=1, fullout=False,
 
     # phiR(r) = 1/u0 * iint Green(r-r') f(r') u0(r')
     # phiR(r) = 1/u0 * IFFT{ FFT(f*u0) FFT(G) }
-
-    ln = len(n)
-
 
     f = km**2 * ( (n/nm)**2 - 1 )
     if zeropad:
@@ -650,20 +643,14 @@ def rytov_2d(n, nm, lambd, order=1, zeropad=1, fullout=False,
 
     if jmc is not None:
         jmc.value += 1
-        
 
-    grad2 = 0
-    # Perform iterations
-    for i in range(order):
-        FU = np.fft.fft2((f+grad2)*u0)
-        phiR = np.fft.fftshift(np.fft.ifft2(G*FU)) / u0
-        gradient = np.gradient(phiR)
-        grad2 = gradient[0]**2 + gradient[1]**2
-        #print(np.sum(grad2.imag), np.sum(grad2.real))
-        grad2 = grad2.real
+    FU = np.fft.fft2(f*u0)
+    phiR = np.fft.fftshift(np.fft.ifft2(G*FU)) / u0
+    #gradient = np.gradient(phiR)
 
-        if jmc is not None:
-            jmc.value += 1    
+    if jmc is not None:
+        jmc.value += 1    
+
     u = np.exp(phiR)*u0
 
     if zeropad:
