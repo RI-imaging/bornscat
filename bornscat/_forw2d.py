@@ -6,10 +6,17 @@
 """
 from __future__ import division, print_function
 
+import multiprocessing as mp
 import numpy as np
 import scipy.interpolate as intp
 import scipy.special
 import warnings
+
+try:
+    import pyfftw
+except:
+    warnings.warn("PyFFTW not available!")
+    pyfftw = None
 
 from . import pad
 
@@ -562,7 +569,7 @@ def born_2d_fourier(n, lD, nm, lambd, zeropad=True):
     return np.exp(1j*km*lD)+uB
 
 
-def rytov_2d(n, nm, lambd, zeropad=1,
+def rytov_2d(n, nm, lambd, zeropad=1, use_pyfftw=True,
              jmc=None, jmm=None):
     """ Computes Rytov series using Fourier convolution.
     
@@ -593,6 +600,8 @@ def rytov_2d(n, nm, lambd, zeropad=1,
         vacuum wavelength of the used light in pixels
     zeropad : bool
         Zero-pad input data which significantly improves accuracy
+    use_pyfftw : bool
+        Use PyFFTW package for faster computation of Fourier transforms.
     jmc, jmm : instance of `multiprocessing.Value` or `None`
         The progress of this function can be monitored with the 
         `jobmanager` package. The current step `jmc.value` is
@@ -644,9 +653,36 @@ def rytov_2d(n, nm, lambd, zeropad=1,
     if jmc is not None:
         jmc.value += 1
 
-    FU = np.fft.fft2(f*u0)
-    phiR = np.fft.fftshift(np.fft.ifft2(G*FU)) / u0
-    #gradient = np.gradient(phiR)
+
+    if use_pyfftw:
+        if pyfftw is None:
+            raise ValueError("PyFFTW not found; disable with `use_pyfftw=False`.")
+        
+        FU = f*u0/np.product(f.shape)
+    
+        temp_array = pyfftw.n_byte_align_empty(FU.shape, 16, np.complex)
+    
+        # FFT plan
+        myfftw_plan = pyfftw.FFTW(temp_array, temp_array, threads=mp.cpu_count(),
+                                  flags=["FFTW_MEASURE", "FFTW_DESTROY_INPUT"],
+                                  axes=(0,1))
+        # IFFT plan
+        myifftw_plan = pyfftw.FFTW(temp_array, temp_array, threads=mp.cpu_count(),
+                                   axes=(0,1),
+                                   direction="FFTW_BACKWARD",
+                                   flags=["FFTW_MEASURE", "FFTW_DESTROY_INPUT"])
+        #FUorig = np.fft.fft2(f*u0)
+        temp_array[:] = FU[:]
+        myfftw_plan.execute()
+    
+        # phiRorig = np.fft.fftshift(np.fft.ifft2(G*FUorig)) / u0
+        temp_array[:] *= G
+        myifftw_plan.execute()
+        phiR = np.fft.fftshift(temp_array)/u0
+    else:
+        FUorig = np.fft.fft2(f*u0)
+        phiR = np.fft.fftshift(np.fft.ifft2(G*FUorig)) / u0
+
 
     if jmc is not None:
         jmc.value += 1    
