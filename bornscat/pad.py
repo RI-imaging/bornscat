@@ -77,10 +77,12 @@ def pad_add(av, size=None, stlen=10):
     elif not hasattr(size, "__len__"):
         size = [size]
 
-    assert len(av.shape) in [1,2], "Only 1D and 2D arrays!"
+    assert len(av.shape) in [1,2,3], "Only 1D, 2D, or 3D arrays!"
     assert len(av.shape) == len(size), "`size` must have same length as `av.shape`!"
     
-    if len(av.shape) == 2:
+    if len(av.shape) == 3:
+        return _pad_add_3d(av, size, stlen)
+    elif len(av.shape) == 2:
         return _pad_add_2d(av, size, stlen)
     else:
         return _pad_add_1d(av, size, stlen)
@@ -142,6 +144,48 @@ def _pad_add_2d(av, size, stlen):
     return bv
 
 
+def _pad_add_3d(av, size, stlen):
+    """ 3D component of `pad_add`
+    """
+    assert len(size) == 3
+    
+    padx = _get_pad_left_right(av.shape[0], size[0])
+    pady = _get_pad_left_right(av.shape[1], size[1])
+    padz = _get_pad_left_right(av.shape[2], size[2])
+    
+    mask = np.zeros(av.shape, dtype=bool)
+    mask[stlen:-stlen, stlen:-stlen, stlen:-stlen] = True
+    border = av[~mask]
+    if av.dtype.name.count("complex"):
+        padval = np.average(np.abs(border))*np.exp(1j*np.average(np.angle(border)))
+    else:
+        padval = np.average(border)
+    if np.__version__[:3] in ["1.7", "1.8", "1.9"]:
+        end_values = ((padval,padval),(padval,padval),(padval,padval))
+    else:
+        end_values = (padval,)
+    bv = np.pad(av,
+                (padx, pady, padz),
+                mode="linear_ramp",
+                end_values=end_values)
+    # roll the array so that the padding values are on the right
+    bv = np.roll(bv, -padx[0], 0)
+    bv = np.roll(bv, -pady[0], 1)
+    bv = np.roll(bv, -padz[0], 2)
+    
+    if False:
+        import os
+        import matplotlib.pylab as plt
+        if not os.path.exists("test"):
+            os.mkdir("test")
+        for ii in range(bv.shape[0]):
+            plt.imshow(bv[ii])
+            plt.savefig("test/{:04d}.png".format(ii))
+            plt.close()
+    
+    return bv
+
+
 def pad_rem(pv, size=None):
     """ Removes linear padding from array
 
@@ -171,13 +215,12 @@ def pad_rem(pv, size=None):
         size = [size]
 
 
-    assert len(pv.shape) in [1,2], "Only 1D and 2D arrays!"
+    assert len(pv.shape) in [1,2,3], "Only 1D and 2D arrays!"
     assert len(pv.shape) == len(size), "`size` must have same length as `av.shape`!"
 
-    if len(pv.shape) == 2:
+    if len(pv.shape) == 3:
+        return pv[:size[0], :size[1], :size[2]]
+    elif len(pv.shape) == 2:
         return pv[:size[0], :size[1]]
     else:
         return pv[:size[0]]
-            
-            
-            

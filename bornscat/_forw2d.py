@@ -18,6 +18,18 @@ except:
     warnings.warn("PyFFTW not available!")
     pyfftw = None
 
+
+try:
+    import reikna.fft
+    import reikna.cluda
+except:
+    warnings.warn("reikna not available!")
+    reikna = None
+else:
+    reikna_data = {}
+
+green_data = {}
+
 from . import pad
 
 __all__ = ["born_2d", "born_2d_matrix", "born_2d_shift",
@@ -138,7 +150,7 @@ def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
 
 
     # Perform iterations
-    for i in range(order):
+    for _ii in range(order):
         #this does not work correctly:
         #uB = scipy.signal.fftconvolve(g,u*f,mode="same")
         FU = np.fft.fft2(f*u)
@@ -569,7 +581,7 @@ def born_2d_fourier(n, lD, nm, lambd, zeropad=True):
     return np.exp(1j*km*lD)+uB
 
 
-def rytov_2d(n, nm, lambd, zeropad=1, use_pyfftw=True,
+def rytov_2d(n, nm, lambd, zeropad=1, fft_method=None,
              jmc=None, jmm=None):
     """ Computes Rytov series using Fourier convolution.
     
@@ -600,8 +612,10 @@ def rytov_2d(n, nm, lambd, zeropad=1, use_pyfftw=True,
         vacuum wavelength of the used light in pixels
     zeropad : bool
         Zero-pad input data which significantly improves accuracy
-    use_pyfftw : bool
-        Use PyFFTW package for faster computation of Fourier transforms.
+    fft_method : str or None
+        Which method should we use for performing Fourier transforms?
+        One of [None, "reika", "pyfftw", "numpy"]
+        If None, try methods in the above order.
     jmc, jmm : instance of `multiprocessing.Value` or `None`
         The progress of this function can be monitored with the 
         `jobmanager` package. The current step `jmc.value` is
@@ -615,12 +629,13 @@ def rytov_2d(n, nm, lambd, zeropad=1, use_pyfftw=True,
         Complex electric field at the detector (length M) or entire
         electric field or shape (MxM) if fullout is set to True.
     """
+    global reikna_data, green_data
+    
+    assert fft_method in [None, "numpy", "reikna", "pyfftw"]
+    
     if jmm is not None:
         jmm.value = 2
     
-    #Green = lambda R: np.exp(1j * km * R) / (4*np.pi*R)
-    Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
-
     km = (2*np.pi*nm)/lambd
 
     # phiR(r) = 1/u0 * iint Green(r-r') f(r') u0(r')
@@ -639,24 +654,78 @@ def rytov_2d(n, nm, lambd, zeropad=1, use_pyfftw=True,
     zv = z.reshape( 1,-1)
 
     u0 = np.exp(1j*km*zv)
-    R = np.sqrt( (xv)**2 + (zv)**2 )
+
+    
+
+    if len(green_data) == 0:
+        Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
+        
+        R = np.sqrt( (xv)**2 + (zv)**2 )
+    
+        if jmc is not None:
+            jmc.value += 1
+    
+        g = Green(R)
+        g[np.where(np.isnan(g))] = 0
+    
+        # Fourier transform of Greens function
+        G = np.fft.fft2(g)
+        green_data[0] = G
+    else:
+        G = green_data[0]
 
     if jmc is not None:
         jmc.value += 1
 
-    g = Green(R)
-    g[np.where(np.isnan(g))] = 0
+    if fft_method is None:
+        if reikna is not None:
+            fft_method = "reikna"
+        elif pyfftw is not None:
+            fft_method = "pyfftw"
 
-    # Fourier transform of Greens function
-    G = np.fft.fft2(g)
+    if fft_method == "reikna":
+        data = (f*u0).astype(np.complex64)
+        
+        if len(reikna_data.keys()) == 0:
+            api = reikna.cluda.any_api()
+            warnings.warn("Reikna uses complex64!")
+            thr = api.Thread.create()
+            data_dev = thr.to_device(data)
+            data_res = thr.empty_like(data_dev)
+            rfft = reikna.fft.FFT(data, axes=(0,1))
+            fftc = rfft.compile(thr)
+            reikna_data[0] = fftc
+            reikna_data[1] = thr
+            reikna_data[2] = data_dev
+            reikna_data[3] = data_res
 
-    if jmc is not None:
-        jmc.value += 1
+        else:
+            fftc = reikna_data[0]
+            thr = reikna_data[1]
+            data_dev = reikna_data[2]
+            data_res = reikna_data[3]
+        
+        #FUorig = np.fft.fft2(f*u0)
+        thr.to_device(data, dest=data_dev)
+        fftc(data_res, data_dev)
+        thr.synchronize()
+        
+        #phiR = np.fft.fftshift(np.fft.ifft2(G*FUorig)) / u0        
+        data2 = data_res.get()*G.astype(np.complex64)
+        thr.to_device(data2, dest=data_dev)
+        
+        thr.synchronize()
 
+        fftc(data_dev, data_dev, inverse=True)
+        phiR = np.fft.fftshift(data_dev.get()) / u0
+        thr.synchronize()
+        
+        del data
+        #print(a1-a0, a2-a1, a-a2, b-a, c-b, d-c)
 
-    if use_pyfftw:
+    elif fft_method == "pyfftw":
         if pyfftw is None:
-            raise ValueError("PyFFTW not found; disable with `use_pyfftw=False`.")
+            raise ValueError("PyFFTW not found!")
         
         FU = f*u0/np.product(f.shape)
     

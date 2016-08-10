@@ -8,11 +8,9 @@ from __future__ import division
 from __future__ import print_function
 
 from matplotlib import pylab as plt
-from matplotlib import cm
 import numpy as np
 import os
 import sys
-import time
 
 DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, DIR+"/../")
@@ -22,11 +20,11 @@ import bornscat
 rfac = 4
 # Set measurement parameters
 # Compute scattered field from cylinder
-radius = 10 # wavelengths
+radius = 3 # wavelengths
 nmed = 1.333
 ncyl = 1.343
-size = 128*rfac # pixels
-res = 2*rfac #23 # px/wavelengths
+size = 64*rfac # pixels
+res = 4*rfac #23 # px/wavelengths
 
 
 # create refractive index map for Born
@@ -56,23 +54,26 @@ bam = np.abs(bo)
 rph = np.angle(ro)
 ram = np.abs(ro)
 
-pmin = min(bph.min(), rph.min())
-pmax = max(bph.max(), rph.max())
-amin = min(bam.min(), ram.min())
-amax = max(bam.max(), ram.max())
 
+phakwargs = {"vmin": min(bph.min(), rph.min()),
+             "vmax": max(bph.max(), rph.max()),
+             "cmap": "coolwarm"}
+
+ampkwargs = {"vmin": min(bam.min(), ram.min()),
+             "vmax": max(bam.max(), ram.max()),
+             "cmap": "gray"}
 
 # Plot
 fig, axes = plt.subplots(2,2)
-axes = axes.flatten()
+axes = axes.transpose().flatten()
 axes[0].set_title("Born phase")
-axes[0].imshow(np.angle(bo), cmap=cm.coolwarm, vmin=pmin, vmax=pmax)
+axes[0].imshow(np.angle(bo), **phakwargs)
 axes[1].set_title("Born amplitude")
-axes[1].imshow(np.abs(bo), cmap=cm.gray, vmin=amin, vmax=amax)
+axes[1].imshow(np.abs(bo), **ampkwargs)
 axes[2].set_title("Rytov phase")
-axes[2].imshow(np.angle(ro), cmap=cm.coolwarm, vmin=pmin, vmax=pmax)
+axes[2].imshow(np.angle(ro), **phakwargs)
 axes[3].set_title("Rytov amplitude")
-axes[3].imshow(np.abs(ro), cmap=cm.gray, vmin=amin, vmax=amax)
+axes[3].imshow(np.abs(ro), **ampkwargs)
 
 plt.tight_layout()
 plt.savefig(os.path.join(DIR, "born_rytov_plot_2d.png"))
