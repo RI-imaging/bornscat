@@ -22,7 +22,7 @@ rfac = 4
 # Compute scattered field from cylinder
 radius = 3 # wavelengths
 nmed = 1.333
-ncyl = 1.343
+ncyl = 1.334
 size = 64*rfac # pixels
 res = 4*rfac #23 # px/wavelengths
 

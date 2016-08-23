@@ -75,7 +75,7 @@ def pad_add(av, size=None, stlen=10):
         for s in av.shape:
             size.append(int(2*s))
     elif not hasattr(size, "__len__"):
-        size = [size]
+        size = [size]*len(av.shape)
 
     assert len(av.shape) in [1,2,3], "Only 1D, 2D, or 3D arrays!"
     assert len(av.shape) == len(size), "`size` must have same length as `av.shape`!"
@@ -212,7 +212,7 @@ def pad_rem(pv, size=None):
             assert s%2 == 0, "Uneven size; specify correct size of output!"
             size.append(int(s/2))
     elif not hasattr(size, "__len__"):
-        size = [size]
+        size = [size]*len(pv.shape)
 
 
     assert len(pv.shape) in [1,2,3], "Only 1D and 2D arrays!"

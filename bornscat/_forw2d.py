@@ -94,11 +94,10 @@ def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
     """
     if jmm is not None:
         jmm.value = order + 2
-        
-    #Green = lambda R: np.exp(1j * km * R) / (4*np.pi*R)
-    Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
 
     km = (2*np.pi*nm)/lambd
+        
+    Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
 
     # uB(r) = iint Green(r-r') f(r') u0(r')
     # uB(r) = IFFT{ FFT(f*u0) FFT(G) }
@@ -133,8 +132,6 @@ def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
         jmc.value += 1
     
     R = np.sqrt( (xv)**2 + (zv)**2 )
-
-
 
     g = Green(R)
 

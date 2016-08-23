@@ -54,8 +54,8 @@ phakwargs = {"vmin": rph.min(),
              "vmax": rph.max(),
              "cmap": "coolwarm"}
 
-ampkwargs = {"vmin": ram[:,:,size//2].min(),
-             "vmax": ram[:,:,size//2].max(),
+ampkwargs = {"vmin": ram.min(),
+             "vmax": ram.max(),
              "cmap": "gray"}
 
 # Plot
