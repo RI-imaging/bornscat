@@ -36,6 +36,10 @@ __all__ = ["born_2d", "born_2d_matrix", "born_2d_shift",
            "rytov_2d"]
 
 
+def green2d(r, k):
+    g = 1j/4 * scipy.special.hankel1(0, k*r)
+    g[np.where(r==0)] = 1j/4
+    return g
 
 
 def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
@@ -96,8 +100,6 @@ def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
         jmm.value = order + 2
 
     km = (2*np.pi*nm)/lambd
-        
-    Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
 
     # uB(r) = iint Green(r-r') f(r') u0(r')
     # uB(r) = IFFT{ FFT(f*u0) FFT(G) }
@@ -121,7 +123,7 @@ def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
     if source in ["plane", "line"]:
         u0 = np.exp(1j*km*zv)
     elif source == "point":
-        u0 = Green(np.sqrt( (xv-xS)**2 + (zv+lS)**2 ))
+        u0 = green2d(np.sqrt( (xv-xS)**2 + (zv+lS)**2 ), km)
         u0[np.where(np.isnan(u0))] = 1
         #raise NotImplementedError("Figure out what a point is!")
     else:
@@ -133,9 +135,7 @@ def born_2d(n, nm, lambd, source="plane", lS=None, xS=0, order=1,
     
     R = np.sqrt( (xv)**2 + (zv)**2 )
 
-    g = Green(R)
-
-    g[np.where(np.isnan(g))] = 1
+    g = green2d(R,km)
 
     u = 1*u0
     
@@ -228,9 +228,6 @@ def born_2d_shift(n, lD, nm, lambd, source="plane", order=1, zeropad=1,
         if zeropad:
             jmm.value *= 2
         jmm.value += 2
-        
-    #Green = lambda R: np.exp(1j * km * R) / (4*np.pi*R)
-    Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
 
     km = (2*np.pi*nm)/lambd
 
@@ -278,9 +275,7 @@ def born_2d_shift(n, lD, nm, lambd, source="plane", order=1, zeropad=1,
 
     R = np.sqrt( (xv)**2 + (zv)**2 )
 
-    g = Green(R)
-
-    g[np.where(np.isnan(g))] = 0
+    g = green2d(R,km)
 
 
     # perform convolution of g and fu in real space (uB = g °* fu)
@@ -420,10 +415,6 @@ def born_2d_matrix(n, lD, nm, lambd, source="plane", order=1,
     ln = n.shape[0]
     if jmm is not None:
         jmm.value = ln + 1
-    
-    
-    #Green = lambda R: np.exp(1j * km * R) / (4*np.pi*R)
-    Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
 
     km = (2*np.pi*nm)/lambd
 
@@ -453,8 +444,7 @@ def born_2d_matrix(n, lD, nm, lambd, source="plane", order=1,
     zp = x.reshape(1,-1)
     R = np.sqrt( (xp)**2 + (zp)**2 )
 
-    g = Green(R)
-    g[np.where(np.isnan(g))] = 0
+    g = green2d(R,km)
 
     # build operator matrix
     op = np.zeros((ln,ln**2), dtype=np.complex)
@@ -655,16 +645,12 @@ def rytov_2d(n, nm, lambd, zeropad=1, fft_method=None,
     
 
     if len(green_data) == 0:
-        Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
-        
         R = np.sqrt( (xv)**2 + (zv)**2 )
     
         if jmc is not None:
             jmc.value += 1
     
-        g = Green(R)
-        g[np.where(np.isnan(g))] = 0
-    
+        g = green2d(R,km)    
         # Fourier transform of Greens function
         G = np.fft.fft2(g)
         green_data[0] = G

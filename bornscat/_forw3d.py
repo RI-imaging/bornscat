@@ -32,6 +32,11 @@ green_data = {}
 from . import pad
 
 
+def green3d(r, k):
+    g = 1j*k/(4*np.pi) * (scipy.special.spherical_jn(0, k*r)+1j*scipy.special.spherical_yn(0, k*r))
+    g[np.where(r==0)] = 1j*k/(4*np.pi)
+    return g
+
 
 def born_3d(n, nm, lambd, zeropad=1, fft_method=None,
             jmc=None, jmm=None):
@@ -113,17 +118,12 @@ def born_3d(n, nm, lambd, zeropad=1, fft_method=None,
     
 
     if len(green_data) == 0:
-        #Green = lambda R: np.exp(1j * km * R) / (4*np.pi*R)
-        #Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
-        Green = lambda R: 1j*km/(4*np.pi) * (scipy.special.spherical_jn(0, km*R) + 1j*scipy.special.spherical_yn(0, km*R))
-        
         R = np.sqrt( xv**2 + yv**2 + zv**2 )
     
         if jmc is not None:
             jmc.value += 1
     
-        g = Green(R)
-        g[np.where(np.isnan(g))] = 0
+        g = green3d(R, km)
     
         # Fourier transform of Greens function
         G = np.fft.fftn(g)
@@ -303,17 +303,12 @@ def rytov_3d(n, nm, lambd, zeropad=1, fft_method=None,
     
 
     if len(green_data) == 0:
-        #Green = lambda R: np.exp(1j * km * R) / (4*np.pi*R)
-        #Green = lambda R: 1j/4 * scipy.special.hankel1(0, km*R)
-        Green = lambda R: 1j*km/(4*np.pi) * (scipy.special.spherical_jn(0, km*R) + 1j*scipy.special.spherical_yn(0, km*R))
-        
         R = np.sqrt( xv**2 + yv**2 + zv**2 )
     
         if jmc is not None:
             jmc.value += 1
     
-        g = Green(R)
-        g[np.where(np.isnan(g))] = 0
+        g = green3d(R, km)
     
         # Fourier transform of Greens function
         G = np.fft.fftn(g)

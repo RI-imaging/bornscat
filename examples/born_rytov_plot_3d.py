@@ -16,7 +16,6 @@ DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, DIR+"/../")
 
 import bornscat
-import unwrap
 
 rfac = 1
 # Set measurement parameters
@@ -27,7 +26,7 @@ nsph = 1.343
 size = 64*rfac # pixels
 res = 4*rfac #23 # px/wavelengths
 
-fft_method = "pyfftw"
+fft_method = "numpy"
 
 # create refractive index map for Born
 n = nmed * np.ones((size,size,size))
@@ -46,7 +45,6 @@ rytov_u = bornscat.rytov_3d(n, nmed, res, fft_method=fft_method)
 ro = rytov_u/rytov_u0
 
 rph = np.angle(ro)
-rph = unwrap.unwrap(rph)
 
 ram = np.abs(ro)
 
